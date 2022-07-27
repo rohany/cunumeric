@@ -487,6 +487,11 @@ class DeferredArray(NumPyThunk):
                     inputs=[],
                 )
 
+                # Ensure that we have a DeferredArray as we're going to
+                # access a private method only on DeferredArray types
+                # (and not on EagerArray).
+                if self.runtime.is_eager_array(out):
+                    out = out.to_deferred_array()
                 out = out._copy_store(out_tmp)
 
             return False, rhs, out, self
