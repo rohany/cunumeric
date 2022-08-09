@@ -555,3 +555,65 @@ def _cholesky(a: ndarray, no_tril: bool = False) -> ndarray:
     )
     output._thunk.cholesky(input._thunk, no_tril=no_tril)
     return output
+
+
+@add_boilerplate("a", "b")
+def solve(a: ndarray, b: ndarray) -> ndarray:
+    """
+    Solve a linear matrix equation, or system of linear scalar equations.
+    Computes the "exact" solution, `x`, of the well-determined, i.e., full
+    rank, linear matrix equation `ax = b`.
+    Parameters
+    ----------
+    a : (M, M) array_like
+        Coefficient matrix.
+    b : {(M,)}, array_like
+        Ordinate or "dependent variable" values.
+    Returns
+    -------
+    x : {(..., M,)} ndarray
+        Solution to the system a x = b.  Returned shape is identical to `b`.
+    Raises
+    ------
+    LinAlgError
+        If `a` is singular or not square.
+    See Also
+    --------
+    scipy.linalg.solve : Similar function in SciPy.
+
+    Availability
+    --------
+    Single GPUs, Single CPUs
+
+    """
+    shape = a.shape
+    if len(shape) < 2:
+        raise ValueError(
+            f"{len(shape)}-dimensional array given. "
+            "Array must be at least two-dimensional"
+        )
+    if shape[-1] != shape[-2]:
+        raise ValueError("Last 2 dimensions of the array must be square")
+
+    if len(shape) > 2:
+        raise NotImplementedError(
+            "cuNumeric needs to support stacked 2d arrays"
+        )
+
+    if len(b.shape) != 1:
+        raise ValueError("Target vector b must be one-dimensional")
+    if b.shape[0] != shape[-2]:
+        raise ValueError("b's shape does not match a's shape")
+
+    if a.dtype.kind not in ("f"):
+        a = a.astype("float64")
+    if b.dtype.kind not in ("f"):
+        b = b.astype("float64")
+
+    x = ndarray(
+        shape=b.shape,
+        dtype=b.dtype,
+        # TODO (rohany): What do I do with the inputs field?
+    )
+    a._thunk.solve(b._thunk, x._thunk)
+    return x

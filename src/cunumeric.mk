@@ -37,6 +37,7 @@ GEN_CPU_SRC += cunumeric/ternary/where.cc               \
 							 cunumeric/item/read.cc                   \
 							 cunumeric/item/write.cc                  \
 							 cunumeric/matrix/contract.cc             \
+							 cunumeric/matrix/dgesv.cc                \
 							 cunumeric/matrix/diag.cc                 \
 							 cunumeric/matrix/gemm.cc                 \
 							 cunumeric/matrix/matmul.cc               \

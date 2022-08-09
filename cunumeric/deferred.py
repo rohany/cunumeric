@@ -51,6 +51,7 @@ from .config import (
     UnaryRedCode,
 )
 from .linalg.cholesky import cholesky
+from .linalg.solve import solve
 from .sort import sort
 from .thunk import NumPyThunk
 from .utils import is_advanced_indexing
@@ -3040,6 +3041,10 @@ class DeferredArray(NumPyThunk):
     @auto_convert([1])
     def cholesky(self, src: Any, no_tril: bool = False) -> None:
         cholesky(self, src, no_tril)
+
+    @auto_convert([1, 2])
+    def solve(self, b: Any, x: Any) -> None:
+        solve(self, b, x)
 
     @auto_convert([2])
     def scan(
