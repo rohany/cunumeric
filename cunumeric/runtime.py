@@ -539,17 +539,15 @@ class Runtime(object):
                 shape=array.shape,
                 optimize_scalar=False,
             )
-            store.attach_external_allocation(
-                self.legate_context,
-                array.data,
-                share,
-            )
-            return DeferredArray(
+            assert not share
+            thunk = DeferredArray(
                 self,
                 store,
                 dtype=array.dtype,
-                numpy_array=array if share else None,
             )
+            for index in np.ndindex(array.shape):
+                thunk.set_item(index, self.create_wrapped_scalar(array[index], array.dtype, ()))
+            return thunk
 
         assert not defer
         # Make this into an eager evaluated thunk
