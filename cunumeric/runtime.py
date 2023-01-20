@@ -138,13 +138,7 @@ class Runtime(object):
                 ty.int32,
             )
         )
-        self.num_procs = int(
-            self.legate_context.get_tunable(
-                CuNumericTunable.NUM_PROCS,
-                ty.int32,
-            )
-        )
-        self.num_gpus = int(
+        num_gpus = int(
             self.legate_context.get_tunable(
                 CuNumericTunable.NUM_GPUS,
                 ty.int32,
@@ -161,8 +155,16 @@ class Runtime(object):
         self.args = parse_library_command_args("cunumeric", ARGS)
         self.args.warning = self.args.warning or self.args.test_mode
 
-        if self.num_gpus > 0 and self.args.preload_cudalibs:
+        if num_gpus > 0 and self.args.preload_cudalibs:
             self._load_cudalibs()
+
+    @property
+    def num_procs(self) -> int:
+        return self.legate_runtime.machine.num_procs
+
+    @property
+    def num_gpus(self) -> int:
+        return self.legate_runtime.num_gpus
 
     def _register_dtypes(self) -> None:
         type_system = self.legate_context.type_system
