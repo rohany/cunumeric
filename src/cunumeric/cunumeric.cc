@@ -34,6 +34,7 @@ void registration_callback()
 {
   ResourceConfig config;
   config.max_tasks         = CUNUMERIC_MAX_TASKS;
+  config.max_preregistered_task_id = CUNUMERIC_MAX_TASK_ID;
   config.max_reduction_ops = CUNUMERIC_MAX_REDOPS;
 
   auto context = Runtime::get_runtime()->create_library(

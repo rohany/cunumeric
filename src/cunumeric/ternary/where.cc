@@ -17,6 +17,13 @@
 #include "cunumeric/ternary/where.h"
 #include "cunumeric/ternary/where_template.inl"
 
+#include "core/runtime/mlir.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+
 namespace cunumeric {
 
 using namespace legate;
@@ -56,9 +63,79 @@ struct WhereImplBody<VariantKind::CPU, CODE, DIM> {
   where_template<VariantKind::CPU>(context);
 }
 
+class WhereGenerator : public MLIRTaskBodyGenerator {
+ public:
+  std::unique_ptr<MLIRModule> generate_body(
+     MLIRRuntime* runtime,
+     const std::string& kernelName,
+     const std::vector<CompileTimeStoreDescriptor>& inputs,
+     const std::vector<CompileTimeStoreDescriptor>& outputs,
+     const std::vector<CompileTimeStoreDescriptor>& reducs,
+     char* buffer,
+     int32_t buflen
+  ) {
+    assert(inputs.size() == 3);
+    assert(outputs.size() == 1);
+    assert(reducs.size() == 0);
+
+    auto ctx = runtime->getContext().get();
+    mlir::OpBuilder builder(ctx);
+    mlir::OwningOpRef<mlir::ModuleOp> module = mlir::ModuleOp::create(builder.getUnknownLoc());
+    builder.setInsertionPointToEnd(module->getBody());
+    auto loc = mlir::NameLoc::get(mlir::StringAttr::get(ctx, "where"));
+
+    auto& mask = inputs[0];
+    auto& in1 = inputs[1];
+    auto& in2 = inputs[2];
+    auto& out = outputs[0];
+
+    auto maskType = buildMemRefType(ctx, mask);
+    auto in1Type = buildMemRefType(ctx, in1);
+    auto in2Type = buildMemRefType(ctx, in2);
+    auto outType = buildMemRefType(ctx, out);
+    auto funcType = builder.getFunctionType({maskType, in1Type, in2Type, outType}, std::nullopt);
+
+    mlir::NamedAttribute namedAttr(mlir::StringAttr::get(ctx, "llvm.emit_c_interface"), mlir::UnitAttr::get(ctx));
+    auto func = builder.create<mlir::func::FuncOp>(loc, kernelName, funcType, std::vector<mlir::NamedAttribute>{namedAttr});
+    auto block = func.addEntryBlock();
+    auto maskVar = block->getArgument(0);
+    auto in1Var = block->getArgument(1);
+    auto in2Var = block->getArgument(2);
+    auto outVar = block->getArgument(3);
+    builder.setInsertionPointToStart(block);
+
+    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, maskVar, mask.ndim);
+
+    mlir::buildAffineLoopNest(
+        builder,
+        loc,
+        loopLBs,
+        loopUBs,
+        std::vector<int64_t>(mask.ndim, 1),
+        [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange lvs) {
+          auto maskLoad = builder.create<mlir::AffineLoadOp>(loc, maskVar, lvs);
+          auto ifop = builder.create<mlir::scf::IfOp>(loc, maskLoad, [&](mlir::OpBuilder& builder, mlir::Location loc) {
+            auto inLoad = builder.create<mlir::AffineLoadOp>(loc, in1Var, lvs);
+            builder.create<mlir::scf::YieldOp>(loc, mlir::ValueRange{inLoad});
+          }, [&](mlir::OpBuilder& builder, mlir::Location loc) {
+            auto inLoad = builder.create<mlir::AffineLoadOp>(loc, in2Var, lvs);
+            builder.create<mlir::scf::YieldOp>(loc, mlir::ValueRange{inLoad});
+          });
+          builder.create<mlir::AffineStoreOp>(loc, ifop.getResults()[0], outVar, lvs);
+        });
+    builder.create<mlir::func::ReturnOp>(loc);
+
+    return std::make_unique<MLIRModule>(std::move(module), kernelName, inputs, outputs, reducs);
+  }
+  ~WhereGenerator() {}
+};
+
 namespace  // unnamed
 {
-static void __attribute__((constructor)) register_tasks(void) { WhereTask::register_variants(); }
+static void __attribute__((constructor)) register_tasks(void) {
+  auto generator = std::make_unique<WhereGenerator>();
+  WhereTask::register_variants(std::move(generator));
+}
 }  // namespace
 
 }  // namespace cunumeric

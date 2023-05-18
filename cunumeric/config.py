@@ -371,6 +371,7 @@ class CuNumericOpCode(IntEnum):
     WRAP = _cunumeric.CUNUMERIC_WRAP
     WRITE = _cunumeric.CUNUMERIC_WRITE
     ZIP = _cunumeric.CUNUMERIC_ZIP
+    MAX_TASK_ID = _cunumeric.CUNUMERIC_MAX_TASK_ID
 
 
 # Match these to CuNumericUnaryOpCode in cunumeric_c.h

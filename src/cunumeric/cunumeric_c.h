@@ -76,6 +76,9 @@ enum CuNumericOpCode {
   CUNUMERIC_WRAP,
   CUNUMERIC_WRITE,
   CUNUMERIC_ZIP,
+
+  // Always must be the last one.
+  CUNUMERIC_MAX_TASK_ID,
 };
 
 // Match these to UnaryOpCode in config.py

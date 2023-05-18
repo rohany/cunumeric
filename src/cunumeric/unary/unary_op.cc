@@ -17,6 +17,15 @@
 #include "cunumeric/unary/unary_op.h"
 #include "cunumeric/unary/unary_op_template.inl"
 
+#include "core/runtime/mlir.h"
+#include "core/utilities/deserializer.h"
+
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Math/IR/Math.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+
 namespace cunumeric {
 
 using namespace legate;
@@ -105,9 +114,103 @@ struct MultiOutUnaryOpImplBody<VariantKind::CPU, OP_CODE, CODE, DIM> {
   unary_op_template<VariantKind::CPU>(context);
 }
 
+mlir::Value buildUnop(mlir::OpBuilder& builder, mlir::Location& loc, mlir::Value in, UnaryOpCode code) {
+  // TODO (rohany): Also do a switch on the types.
+  switch (code) {
+    case UnaryOpCode::ABSOLUTE:
+      return builder.create<mlir::math::AbsFOp>(loc, in.getType(), in);
+    case UnaryOpCode::COPY:
+    case UnaryOpCode::POSITIVE:
+      return in;
+    case UnaryOpCode::NEGATIVE:
+      return builder.create<mlir::arith::NegFOp>(loc, in.getType(), in);
+    case UnaryOpCode::SQRT:
+      return builder.create<mlir::math::SqrtOp>(loc, in.getType(), in);
+    case UnaryOpCode::EXP:
+      return builder.create<mlir::math::ExpOp>(loc, in.getType(), in);
+    case UnaryOpCode::LOG:
+      return builder.create<mlir::math::LogOp>(loc, in.getType(), in);
+    case UnaryOpCode::LOG10:
+      return builder.create<mlir::math::Log10Op>(loc, in.getType(), in);
+    case UnaryOpCode::LOG1P:
+      return builder.create<mlir::math::Log1pOp>(loc, in.getType(), in);
+    case UnaryOpCode::LOG2:
+      return builder.create<mlir::math::Log2Op>(loc, in.getType(), in);
+    default:
+      assert(false);
+      return in;
+  }
+}
+
+class UnaryOpGenerator : public MLIRTaskBodyGenerator {
+ public:
+  std::unique_ptr<MLIRModule> generate_body(
+     MLIRRuntime* runtime,
+     const std::string& kernelName,
+     const std::vector<CompileTimeStoreDescriptor>& inputs,
+     const std::vector<CompileTimeStoreDescriptor>& outputs,
+     const std::vector<CompileTimeStoreDescriptor>& reducs,
+     char* buffer,
+     int32_t buflen
+  ) {
+    // TODO (rohany): We'll also not worry about deduplication of stores
+    //  with the same ID, or we can even just let the core passes worry about
+    //  that, rather than having definitions think about it. It seems like
+    //  something the core should do, which is a programmatic transformation.
+
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
+    assert(reducs.size() == 0);
+
+    // TODO (rohany): Better story for unpacking task / compile-time arguments...
+    SimpleDeserializer dez(reinterpret_cast<int8_t*>(buffer), buflen);
+    auto code = dez.unpack<Scalar>().value<UnaryOpCode>();
+
+    auto ctx = runtime->getContext().get();
+    mlir::OpBuilder builder(ctx);
+    mlir::OwningOpRef<mlir::ModuleOp> module = mlir::ModuleOp::create(builder.getUnknownLoc());
+    builder.setInsertionPointToEnd(module->getBody());
+    auto loc = mlir::NameLoc::get(mlir::StringAttr::get(ctx, "unary_op"));
+
+    auto& in = inputs[0];
+    auto& out = outputs[0];
+
+    auto inType = buildMemRefType(ctx, in);
+    auto outType = buildMemRefType(ctx, out);
+    auto funcType = builder.getFunctionType({inType, outType}, std::nullopt);
+    mlir::NamedAttribute namedAttr(mlir::StringAttr::get(ctx, "llvm.emit_c_interface"), mlir::UnitAttr::get(ctx));
+    auto func = builder.create<mlir::func::FuncOp>(loc, kernelName, funcType, std::vector<mlir::NamedAttribute>{namedAttr});
+    auto block = func.addEntryBlock();
+    auto inVar = block->getArgument(0);
+    auto outVar = block->getArgument(1);
+    builder.setInsertionPointToStart(block);
+
+    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, inVar, in.ndim);
+
+    mlir::buildAffineLoopNest(
+        builder,
+        loc,
+        loopLBs,
+        loopUBs,
+        std::vector<int64_t>(in.ndim, 1),
+        [&inVar, &outVar, &code](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange lvs) {
+          auto inLoad = builder.create<mlir::AffineLoadOp>(loc, inVar, lvs);
+          auto unop = buildUnop(builder, loc, inLoad, code);
+          builder.create<mlir::AffineStoreOp>(loc, unop, outVar, lvs);
+        });
+    builder.create<mlir::func::ReturnOp>(loc);
+
+    return std::make_unique<MLIRModule>(std::move(module), kernelName, inputs, outputs, reducs);
+  }
+  ~UnaryOpGenerator() {}
+};
+
 namespace  // unnamed
 {
-static void __attribute__((constructor)) register_tasks(void) { UnaryOpTask::register_variants(); }
+static void __attribute__((constructor)) register_tasks(void) {
+  auto generator = std::make_unique<UnaryOpGenerator>();
+  UnaryOpTask::register_variants(std::move(generator));
+}
 }  // namespace
 
 }  // namespace cunumeric
