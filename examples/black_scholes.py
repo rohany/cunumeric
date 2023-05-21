@@ -19,6 +19,8 @@ import argparse
 
 from benchmark import parse_args, run_benchmark
 
+from legate.core._lib.context import CppRuntime
+
 
 def generate_random(N, min, max, D):
     diff = D(max) - D(min)
@@ -29,12 +31,9 @@ def generate_random(N, min, max, D):
 
 
 def initialize(N, D):
-    # S = generate_random(N, 5, 30, D)
-    # X = generate_random(N, 1, 100, D)
-    # T = generate_random(N, 0.25, 10, D)
-    S = np.arange(N, dtype=D)
-    X = np.arange(N, dtype=D)
-    T = np.arange(N, dtype=D)
+    S = generate_random(N, 5, 30, D)
+    X = generate_random(N, 1, 100, D)
+    T = generate_random(N, 0.25, 10, D)
     R = 0.02
     V = 0.3
     return S, X, T, R, V
@@ -74,17 +73,16 @@ def black_scholes(S, X, T, R, V):
 def run_black_scholes(N, D):
     from legate.core.runtime import runtime
     print("Running black scholes on %dK options..." % N)
-    # N *= 1000
+    N *= 1000
     S, X, T, R, V = initialize(N, D)
     runtime.flush_scheduling_window()
+    print("Starting black scholes...")
     timer.start()
     r1, r2 = black_scholes(S, X, T, R, V)
+    runtime.flush_scheduling_window()
     total = timer.stop()
-    runtime.flush_scheduling_window()
-    print(r1)
-    print(r2)
-    runtime.flush_scheduling_window()
     print("Elapsed Time: " + str(total) + " ms")
+    # CppRuntime.dumpMLIRObjects()
     return total
 
 
@@ -102,7 +100,7 @@ if __name__ == "__main__":
         "-p",
         "--precision",
         type=int,
-        default=32,
+        default=64,
         dest="P",
         help="precision of the computation in bits",
     )

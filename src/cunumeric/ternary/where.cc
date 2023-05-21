@@ -114,14 +114,16 @@ class WhereGenerator : public MLIRTaskBodyGenerator {
         std::vector<int64_t>(mask.ndim, 1),
         [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange lvs) {
           auto maskLoad = builder.create<mlir::AffineLoadOp>(loc, maskVar, lvs);
-          auto ifop = builder.create<mlir::scf::IfOp>(loc, maskLoad, [&](mlir::OpBuilder& builder, mlir::Location loc) {
-            auto inLoad = builder.create<mlir::AffineLoadOp>(loc, in1Var, lvs);
-            builder.create<mlir::scf::YieldOp>(loc, mlir::ValueRange{inLoad});
-          }, [&](mlir::OpBuilder& builder, mlir::Location loc) {
-            auto inLoad = builder.create<mlir::AffineLoadOp>(loc, in2Var, lvs);
-            builder.create<mlir::scf::YieldOp>(loc, mlir::ValueRange{inLoad});
-          });
-          builder.create<mlir::AffineStoreOp>(loc, ifop.getResults()[0], outVar, lvs);
+          // auto ifop = builder.create<mlir::scf::IfOp>(loc, maskLoad, [&](mlir::OpBuilder& builder, mlir::Location loc) {
+          //   auto inLoad = builder.create<mlir::AffineLoadOp>(loc, in1Var, lvs);
+          //   builder.create<mlir::scf::YieldOp>(loc, mlir::ValueRange{inLoad});
+          // }, [&](mlir::OpBuilder& builder, mlir::Location loc) {
+          //   auto inLoad = builder.create<mlir::AffineLoadOp>(loc, in2Var, lvs);
+          //   builder.create<mlir::scf::YieldOp>(loc, mlir::ValueRange{inLoad});
+          // });
+          // builder.create<mlir::AffineStoreOp>(loc, ifop.getResults()[0], outVar, lvs);
+          auto inLoad = builder.create<mlir::AffineLoadOp>(loc, in1Var, lvs);
+          builder.create<mlir::AffineStoreOp>(loc, inLoad, outVar, lvs);
         });
     builder.create<mlir::func::ReturnOp>(loc);
 
