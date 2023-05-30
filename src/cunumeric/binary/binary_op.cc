@@ -143,17 +143,17 @@ class BinaryOpGenerator : public MLIRTaskBodyGenerator {
 
     auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, aVar, a.ndim);
 
-    mlir::buildAffineLoopNest(
+    mlir::affine::buildAffineLoopNest(
         builder,
         loc,
         loopLBs,
         loopUBs,
         std::vector<int64_t>(a.ndim, 1),
         [&aVar, &bVar, &cVar, &code](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange lvs) {
-          auto aLoad = builder.create<mlir::AffineLoadOp>(loc, aVar, lvs);
-          auto bLoad = builder.create<mlir::AffineLoadOp>(loc, bVar, lvs);
+          auto aLoad = builder.create<mlir::affine::AffineLoadOp>(loc, aVar, lvs);
+          auto bLoad = builder.create<mlir::affine::AffineLoadOp>(loc, bVar, lvs);
           auto binop = buildBinop(builder, loc, aLoad, bLoad, code);
-          auto cStore = builder.create<mlir::AffineStoreOp>(loc, binop, cVar, lvs);
+          auto cStore = builder.create<mlir::affine::AffineStoreOp>(loc, binop, cVar, lvs);
         });
     builder.create<mlir::func::ReturnOp>(loc);
 

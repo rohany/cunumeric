@@ -106,18 +106,18 @@ class WhereGenerator : public MLIRTaskBodyGenerator {
 
     auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, maskVar, mask.ndim);
 
-    mlir::buildAffineLoopNest(
+    mlir::affine::buildAffineLoopNest(
         builder,
         loc,
         loopLBs,
         loopUBs,
         std::vector<int64_t>(mask.ndim, 1),
         [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange lvs) {
-          auto maskLoad = builder.create<mlir::AffineLoadOp>(loc, maskVar, lvs);
-	  auto in1load = builder.create<mlir::AffineLoadOp>(loc, in1Var, lvs);
-	  auto in2load = builder.create<mlir::AffineLoadOp>(loc, in2Var, lvs);
+          auto maskLoad = builder.create<mlir::affine::AffineLoadOp>(loc, maskVar, lvs);
+	  auto in1load = builder.create<mlir::affine::AffineLoadOp>(loc, in1Var, lvs);
+	  auto in2load = builder.create<mlir::affine::AffineLoadOp>(loc, in2Var, lvs);
 	  auto select = builder.create<mlir::arith::SelectOp>(loc, maskLoad, in1load, in2load);
-	  builder.create<mlir::AffineStoreOp>(loc, select, outVar, lvs);
+	  builder.create<mlir::affine::AffineStoreOp>(loc, select, outVar, lvs);
         });
     builder.create<mlir::func::ReturnOp>(loc);
 

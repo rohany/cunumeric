@@ -187,16 +187,16 @@ class UnaryOpGenerator : public MLIRTaskBodyGenerator {
 
     auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, inVar, in.ndim);
 
-    mlir::buildAffineLoopNest(
+    mlir::affine::buildAffineLoopNest(
         builder,
         loc,
         loopLBs,
         loopUBs,
         std::vector<int64_t>(in.ndim, 1),
         [&inVar, &outVar, &code](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange lvs) {
-          auto inLoad = builder.create<mlir::AffineLoadOp>(loc, inVar, lvs);
+          auto inLoad = builder.create<mlir::affine::AffineLoadOp>(loc, inVar, lvs);
           auto unop = buildUnop(builder, loc, inLoad, code);
-          builder.create<mlir::AffineStoreOp>(loc, unop, outVar, lvs);
+          builder.create<mlir::affine::AffineStoreOp>(loc, unop, outVar, lvs);
         });
     builder.create<mlir::func::ReturnOp>(loc);
 
