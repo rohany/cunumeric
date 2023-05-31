@@ -79,16 +79,16 @@ mlir::Value buildBinop(mlir::OpBuilder& builder, mlir::Location& loc, mlir::Valu
       // TODO (rohany): Using UNORDERED comparisons for now, can revisit this if I can
       //  find a specification on the numpy side somewhere.
       return builder.create<mlir::arith::CmpFOp>(
-          loc, coreTypeToMLIRType(builder.getContext(), LegateTypeCode::BOOL_LT), mlir::arith::CmpFPredicate::UGT, lhs, rhs);
+          loc, coreTypeToMLIRType(builder.getContext(), Type::Code::BOOL), mlir::arith::CmpFPredicate::UGT, lhs, rhs);
     case BinaryOpCode::GREATER_EQUAL:
       return builder.create<mlir::arith::CmpFOp>(
-          loc, coreTypeToMLIRType(builder.getContext(), LegateTypeCode::BOOL_LT), mlir::arith::CmpFPredicate::UGE, lhs, rhs);
+          loc, coreTypeToMLIRType(builder.getContext(), Type::Code::BOOL), mlir::arith::CmpFPredicate::UGE, lhs, rhs);
     case BinaryOpCode::LESS:
       return builder.create<mlir::arith::CmpFOp>(
-          loc, coreTypeToMLIRType(builder.getContext(), LegateTypeCode::BOOL_LT), mlir::arith::CmpFPredicate::ULT, lhs, rhs);
+          loc, coreTypeToMLIRType(builder.getContext(), Type::Code::BOOL), mlir::arith::CmpFPredicate::ULT, lhs, rhs);
     case BinaryOpCode::LESS_EQUAL:
       return builder.create<mlir::arith::CmpFOp>(
-          loc, coreTypeToMLIRType(builder.getContext(), LegateTypeCode::BOOL_LT), mlir::arith::CmpFPredicate::ULE, lhs, rhs);
+          loc, coreTypeToMLIRType(builder.getContext(), Type::Code::BOOL), mlir::arith::CmpFPredicate::ULE, lhs, rhs);
     default:
       assert(false);
       return lhs;
