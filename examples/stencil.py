@@ -19,6 +19,8 @@ import argparse
 
 from benchmark import parse_args, run_benchmark
 
+from legate.core.runtime import runtime
+
 
 def initialize(N):
     print("Initializing stencil grid...")
@@ -40,13 +42,18 @@ def run_stencil(N, I, warmup, timing):  # noqa: E741
     west = grid[1:-1, 0:-2]
     south = grid[2:, 1:-1]
 
+    runtime.flush_scheduling_window()
+
     timer.start()
     for i in range(I + warmup):
         if i == warmup:
             timer.start()
+        runtime.flush_scheduling_window()
         average = center + north + east + west + south
         work = 0.2 * average
+        runtime.flush_scheduling_window()
         center[:] = work
+        runtime.flush_scheduling_window()
     total = timer.stop()
 
     if timing:
