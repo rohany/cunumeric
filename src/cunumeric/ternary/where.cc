@@ -104,7 +104,7 @@ class WhereGenerator : public MLIRTaskBodyGenerator {
     auto outVar = block->getArgument(3);
     builder.setInsertionPointToStart(block);
 
-    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, maskVar, mask.ndim);
+    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, outVar, out.ndim);
 
     mlir::affine::buildAffineLoopNest(
         builder,

@@ -185,7 +185,7 @@ class UnaryOpGenerator : public MLIRTaskBodyGenerator {
     auto outVar = block->getArgument(1);
     builder.setInsertionPointToStart(block);
 
-    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, inVar, in.ndim);
+    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, outVar, out.ndim);
 
     mlir::affine::buildAffineLoopNest(
         builder,

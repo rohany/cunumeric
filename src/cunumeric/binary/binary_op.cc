@@ -141,7 +141,8 @@ class BinaryOpGenerator : public MLIRTaskBodyGenerator {
     auto cVar = block->getArgument(2);
     builder.setInsertionPointToStart(block);
 
-    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, aVar, a.ndim);
+    // TODO (rohany): Comment...
+    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, cVar, c.ndim);
 
     mlir::affine::buildAffineLoopNest(
         builder,
