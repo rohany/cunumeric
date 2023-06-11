@@ -170,7 +170,7 @@ class UnaryOpGenerator : public MLIRTaskBodyGenerator {
     mlir::OpBuilder builder(ctx);
     mlir::OwningOpRef<mlir::ModuleOp> module = mlir::ModuleOp::create(builder.getUnknownLoc());
     builder.setInsertionPointToEnd(module->getBody());
-    auto loc = mlir::NameLoc::get(mlir::StringAttr::get(ctx, "unary_op"));
+    mlir::Location loc = mlir::NameLoc::get(mlir::StringAttr::get(ctx, "unary_op"));
 
     auto& in = inputs[0];
     auto& out = outputs[0];
@@ -185,9 +185,13 @@ class UnaryOpGenerator : public MLIRTaskBodyGenerator {
     auto outVar = block->getArgument(1);
     builder.setInsertionPointToStart(block);
 
-    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, outVar, out.ndim);
-
-    mlir::affine::buildAffineLoopNest(
+    if (out.ndim == 0) {
+      auto inLoad = builder.create<mlir::affine::AffineLoadOp>(loc, inVar, llvm::SmallVector<mlir::Value, 1>());
+      auto unop = buildUnop(builder, loc, inLoad, code);
+      builder.create<mlir::affine::AffineStoreOp>(loc, unop, outVar, llvm::SmallVector<mlir::Value, 1>());
+    } else {
+      auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, outVar, out.ndim);
+      mlir::affine::buildAffineLoopNest(
         builder,
         loc,
         loopLBs,
@@ -197,7 +201,9 @@ class UnaryOpGenerator : public MLIRTaskBodyGenerator {
           auto inLoad = builder.create<mlir::affine::AffineLoadOp>(loc, inVar, lvs);
           auto unop = buildUnop(builder, loc, inLoad, code);
           builder.create<mlir::affine::AffineStoreOp>(loc, unop, outVar, lvs);
-        });
+        }
+      );
+    }
     builder.create<mlir::func::ReturnOp>(loc);
 
     return std::make_unique<MLIRModule>(std::move(module), kernelName, inputs, outputs, reducs);

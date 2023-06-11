@@ -123,7 +123,7 @@ class BinaryOpGenerator : public MLIRTaskBodyGenerator {
     mlir::OpBuilder builder(ctx);
     mlir::OwningOpRef<mlir::ModuleOp> module = mlir::ModuleOp::create(builder.getUnknownLoc());
     builder.setInsertionPointToEnd(module->getBody());
-    auto loc = mlir::NameLoc::get(mlir::StringAttr::get(ctx, "binary_op"));
+    mlir::Location loc = mlir::NameLoc::get(mlir::StringAttr::get(ctx, "binary_op"));
 
     auto& a = inputs[0];
     auto& b = inputs[1];
@@ -141,10 +141,14 @@ class BinaryOpGenerator : public MLIRTaskBodyGenerator {
     auto cVar = block->getArgument(2);
     builder.setInsertionPointToStart(block);
 
-    // TODO (rohany): Comment...
-    auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, cVar, c.ndim);
-
-    mlir::affine::buildAffineLoopNest(
+    if (c.ndim == 0) {
+      auto aLoad = builder.create<mlir::affine::AffineLoadOp>(loc, aVar, llvm::SmallVector<mlir::Value, 1>());
+      auto bLoad = builder.create<mlir::affine::AffineLoadOp>(loc, bVar, llvm::SmallVector<mlir::Value, 1>());
+      auto binop = buildBinop(builder, loc, aLoad, bLoad, code);
+      builder.create<mlir::affine::AffineStoreOp>(loc, binop, cVar, llvm::SmallVector<mlir::Value, 1>());
+    } else {
+      auto [loopLBs, loopUBs] = loopBoundsFromVar(builder, loc, cVar, c.ndim);
+      mlir::affine::buildAffineLoopNest(
         builder,
         loc,
         loopLBs,
@@ -154,8 +158,11 @@ class BinaryOpGenerator : public MLIRTaskBodyGenerator {
           auto aLoad = builder.create<mlir::affine::AffineLoadOp>(loc, aVar, lvs);
           auto bLoad = builder.create<mlir::affine::AffineLoadOp>(loc, bVar, lvs);
           auto binop = buildBinop(builder, loc, aLoad, bLoad, code);
-          auto cStore = builder.create<mlir::affine::AffineStoreOp>(loc, binop, cVar, lvs);
-        });
+          builder.create<mlir::affine::AffineStoreOp>(loc, binop, cVar, lvs);
+        }
+      );
+    }
+
     builder.create<mlir::func::ReturnOp>(loc);
 
     return std::make_unique<MLIRModule>(std::move(module), kernelName, inputs, outputs, reducs);
