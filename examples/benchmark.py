@@ -39,12 +39,16 @@ class CuNumericTimer(Timer):
 
     def start(self):
         from legate.timing import time
+        from legate.core.runtime import runtime
 
+        runtime.flush_scheduling_window()
         self._start_future = time()
 
     def stop(self):
         from legate.timing import time
+        from legate.core.runtime import runtime
 
+        runtime.flush_scheduling_window()
         end_future = time()
         return (end_future - self._start_future) / 1000.0
 

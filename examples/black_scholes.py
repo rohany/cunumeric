@@ -19,8 +19,6 @@ import argparse
 
 from benchmark import parse_args, run_benchmark
 
-from legate.core._lib.context import CppRuntime
-
 
 def generate_random(N, min, max, D):
     diff = D(max) - D(min)
@@ -71,18 +69,14 @@ def black_scholes(S, X, T, R, V):
 
 
 def run_black_scholes(N, D):
-    from legate.core.runtime import runtime
     print("Running black scholes on %dK options..." % N)
     N *= 1000
     S, X, T, R, V = initialize(N, D)
-    runtime.flush_scheduling_window()
     print("Starting black scholes...")
     timer.start()
-    r1, r2 = black_scholes(S, X, T, R, V)
-    runtime.flush_scheduling_window()
+    c, p = black_scholes(S, X, T, R, V)
     total = timer.stop()
     print("Elapsed Time: " + str(total) + " ms")
-    # CppRuntime.dumpMLIRObjects()
     return total
 
 
