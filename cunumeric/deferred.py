@@ -1425,7 +1425,9 @@ class DeferredArray(NumPyThunk):
         assert value.scalar
         assert self.base is not None
 
-        if self.scalar:
+        from legate.core.runtime import settings
+
+        if self.scalar and not settings.kernel_fusion():
             # Handle the 0D case special
             self.base.set_storage(value.storage)
         elif self.dtype.kind != "V" and self.base.kind is not Future:
