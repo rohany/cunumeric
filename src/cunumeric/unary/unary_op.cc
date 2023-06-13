@@ -128,6 +128,8 @@ mlir::Value buildUnop(mlir::OpBuilder& builder, mlir::Location& loc, mlir::Value
       return builder.create<mlir::math::SqrtOp>(loc, in.getType(), in);
     case UnaryOpCode::EXP:
       return builder.create<mlir::math::ExpOp>(loc, in.getType(), in);
+    case UnaryOpCode::FLOOR:
+      return builder.create<mlir::math::FloorOp>(loc, in.getType(), in);
     case UnaryOpCode::LOG:
       return builder.create<mlir::math::LogOp>(loc, in.getType(), in);
     case UnaryOpCode::LOG10:
